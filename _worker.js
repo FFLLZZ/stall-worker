@@ -1,3 +1,4 @@
+
 import { connect } from 'cloudflare:sockets'; 
 
 // =============================================================================
@@ -881,68 +882,67 @@ export default {
           }
       }
 
-      // 🟢 订阅接口
+      // 🟢 订阅接口 (修改：实现上游与本地合并，并支持 Clash 转换时使用合并后的节点)
       if (_SUB_PW && url.pathname === `/${_SUB_PW}`) {
           ctx.waitUntil(logAccess(env, clientIP, `${city},${country}`, "订阅更新"));
-          const isFlagged = url.searchParams.has('flag');
-          if (!isFlagged) {
-             // 仅管理员发通知，陌生人静默
-             if (isAdmin) {
-                 const p = sendTgMsg(ctx, env, "🔄 管理员订阅更新", r, "", true);
-                 if(ctx && ctx.waitUntil) ctx.waitUntil(p);
-             }
+          if (!url.searchParams.has('flag') && isAdmin) {
+             ctx.waitUntil(sendTgMsg(ctx, env, "🔄 管理员订阅更新", r, "", true));
           }
 
           const requestProxyIp = url.searchParams.get('proxyip') || _PROXY_IP;
           const pathParam = requestProxyIp ? "/proxyip=" + requestProxyIp : "/";
-          const subUrl = `https://${_SUB_DOMAIN}/sub?uuid=${_UUID}&encryption=none&security=tls&sni=${host}&alpn=h3&fp=random&allowInsecure=1&type=ws&host=${host}&path=${encodeURIComponent(pathParam)}`;
+          
+          // 构造 URLs: 
+          // upstreamSubUrl: 真实去抓取上游的地址
+          // selfSubUrl: 告诉转换器去抓取 Worker 自己的地址 (从而获取合并后的节点)
+          const upstreamSubUrl = `https://${_SUB_DOMAIN}/sub?uuid=${_UUID}&encryption=none&security=tls&sni=${host}&alpn=h3&fp=random&allowInsecure=1&type=ws&host=${host}&path=${encodeURIComponent(pathParam)}`;
+          const selfSubUrl = `https://${host}/sub?uuid=${_UUID}&encryption=none&security=tls&sni=${host}&alpn=h3&fp=random&allowInsecure=1&type=ws&host=${host}&path=${encodeURIComponent(pathParam)}`;
 
           const UA_L = UA.toLowerCase();
+          
+          // 1. 如果是 Clash/Sing-box，调用转换器，但让转换器抓取我们自己 (selfSubUrl)
           if (UA_L.includes('sing-box') || UA_L.includes('singbox') || UA_L.includes('clash') || UA_L.includes('meta')) {
               const type = (UA_L.includes('clash') || UA_L.includes('meta')) ? 'clash' : 'singbox';
               const config = type === 'clash' ? CLASH_CONFIG : SINGBOX_CONFIG_V12;
-              const subApi = `${_CONVERTER}/sub?target=${type}&url=${encodeURIComponent(subUrl)}&config=${encodeURIComponent(config)}&emoji=true&list=false&sort=false&fdn=false&scv=false`;
+              // 关键修改：url 参数指向 selfSubUrl
+              const subApi = `${_CONVERTER}/sub?target=${type}&url=${encodeURIComponent(selfSubUrl)}&config=${encodeURIComponent(config)}&emoji=true&list=false&sort=false&fdn=false&scv=false`;
               try {
                   const res = await fetch(subApi);
                   return new Response(res.body, { status: 200, headers: res.headers });
               } catch(e) {}
           }
 
+          // 2. 如果是普通客户端 (v2rayNG 等)，手动抓取上游 + 生成本地 -> 合并返回
+          let finalNodesText = "";
+          
+          // A. 抓取上游
           try {
-              const res = await fetch(subUrl, { headers: { 'User-Agent': UA } });
+              const res = await fetch(upstreamSubUrl, { headers: { 'User-Agent': UA } });
               if (res.ok) {
                   let body = await res.text();
+                  try { if (!body.includes('://')) body = atob(body); } catch(e) {}
                   if (_PS) {
-                      try {
-                          const decoded = atob(body); 
-                          const modified = decoded.split('\n').map(line => {
-                              line = line.trim();
-                              if (!line || !line.includes('://')) return line;
-                              if (line.includes('#')) return line + encodeURIComponent(` ${_PS}`);
-                              return line + '#' + encodeURIComponent(_PS);
-                          }).join('\n');
-                          body = btoa(modified); 
-                      } catch(e) {
-                           if(body.includes('://')) {
-                               body = body.split('\n').map(line => {
-                                   line = line.trim();
-                                   if (!line || !line.includes('://')) return line;
-                                   if (line.includes('#')) return line + encodeURIComponent(` ${_PS}`);
-                                   return line + '#' + encodeURIComponent(_PS);
-                               }).join('\n');
-                           }
-                      }
+                      body = body.split('\n').map(line => {
+                          line = line.trim();
+                          if (!line || !line.includes('://')) return line;
+                          return line.includes('#') ? line + encodeURIComponent(` ${_PS}`) : line + '#' + encodeURIComponent(_PS);
+                      }).join('\n');
                   }
-                  return new Response(body, { status: 200, headers: res.headers });
+                  finalNodesText += body + "\n";
               }
           } catch(e) {}
 
-          const allIPs = await getCustomIPs(env);
-          const listText = genNodes(host, _UUID, requestProxyIp, allIPs, _PS);
-          return new Response(btoa(unescape(encodeURIComponent(listText))), { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+          // B. 生成本地
+          try {
+              const allIPs = await getCustomIPs(env);
+              const localNodes = genNodes(host, _UUID, requestProxyIp, allIPs, _PS);
+              finalNodesText += localNodes;
+          } catch(e) {}
+
+          return new Response(btoa(unescape(encodeURIComponent(finalNodesText.trim()))), { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       }
 
-      // 🟢 常规订阅 /sub
+      // 🟢 常规订阅 /sub (修改：同样实现合并逻辑，供转换器调用)
       if (url.pathname === '/sub') {
           ctx.waitUntil(logAccess(env, clientIP, `${city},${country}`, "常规订阅"));
           const requestUUID = url.searchParams.get('uuid');
@@ -952,9 +952,37 @@ export default {
           const pathParam = url.searchParams.get('path');
           if (pathParam && pathParam.includes('/proxyip=')) proxyIp = pathParam.split('/proxyip=')[1];
           
-          const allIPs = await getCustomIPs(env);
-          const listText = genNodes(host, _UUID, proxyIp, allIPs, _PS);
-          return new Response(btoa(unescape(encodeURIComponent(listText))), { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+          // 构造抓取上游的地址
+          const pathP = proxyIp ? "/proxyip=" + proxyIp : "/";
+          const upstreamSubUrl = `https://${_SUB_DOMAIN}/sub?uuid=${_UUID}&encryption=none&security=tls&sni=${host}&alpn=h3&fp=random&allowInsecure=1&type=ws&host=${host}&path=${encodeURIComponent(pathP)}`;
+          
+          let finalNodesText = "";
+
+          // A. 抓取上游
+          try {
+              const res = await fetch(upstreamSubUrl, { headers: { 'User-Agent': UA } });
+              if (res.ok) {
+                  let body = await res.text();
+                  try { if (!body.includes('://')) body = atob(body); } catch(e) {}
+                  if (_PS) {
+                      body = body.split('\n').map(line => {
+                          line = line.trim();
+                          if (!line || !line.includes('://')) return line;
+                          return line.includes('#') ? line + encodeURIComponent(` ${_PS}`) : line + '#' + encodeURIComponent(_PS);
+                      }).join('\n');
+                  }
+                  finalNodesText += body + "\n";
+              }
+          } catch(e) {}
+
+          // B. 生成本地
+          try {
+              const allIPs = await getCustomIPs(env);
+              const localNodes = genNodes(host, _UUID, proxyIp, allIPs, _PS);
+              finalNodesText += localNodes;
+          } catch(e) {}
+
+          return new Response(btoa(unescape(encodeURIComponent(finalNodesText.trim()))), { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       }
 
       // 🟢 面板逻辑 (HTTP)
