@@ -2,31 +2,31 @@
 import { connect } from 'cloudflare:sockets';
 
 // =============================================================================
-// 🟣 用户配置区域 (禁止修改)
+// 🟣 用户配置区域 (优先级环境变量-代码硬编码)           下方内容可改生效于内置代码 【不使用环境变量的情况下】
 // =============================================================================
-const UUID = "06b65903-406d-4a41-8463-6fd5c0ee7798"; 
+const UUID = "06b65903-406d-4a41-8463-6fd5c0ee7798";  //可以在此修改你的自定义UUID 【优先级环境变量】
 
 // 1. 后台管理密码
-const WEB_PASSWORD = "123456"; //修改你的管理密码
+const WEB_PASSWORD = "123456"; //修改你的管理密码 //可以在此修改你的管理员密码 【优先级环境变量】
 // 2. 快速订阅密码 (访问 https://域名/密码)
-const SUB_PASSWORD = "123456"; //修改你的订阅密码
+const SUB_PASSWORD = "123456"; //修改你的订阅密码  //可以在此修改你的订阅密码 【优先级环境变量】
 
 // 3. 默认基础配置
 // 🔴 默认 ProxyIP (代码修改此处生效，客户端修改 path 生效)
-const DEFAULT_PROXY_IP = "ProxyIP.US.CMLiussss.net"; //可自定义修改你的proxyip
+const DEFAULT_PROXY_IP = "ProxyIP.US.CMLiussss.net"; //可自定义修改你的proxyip  //可以在此修改你的proxyip  【优先级环境变量】
 
 // 🔴 真实订阅源 (写死读取)
-const DEFAULT_SUB_DOMAIN = "sub.cmliussss.net";  //可自定义修改你的sub=优选订阅器
+const DEFAULT_SUB_DOMAIN = "sub.cmliussss.net";  //可自定义修改你的sub=优选订阅器  //可以在此修改你的sub优选订阅器  【优先级环境变量】
 
 //群组+检测站修改处
-const TG_GROUP_URL = "https://t.me/zyssadmin";   
-const TG_CHANNEL_URL = "https://t.me/cloudflareorg"; 
-const PROXY_CHECK_URL = "https://kaic.hidns.co/"; 
+const TG_GROUP_URL = "https://t.me/zyssadmin";     //可以在此自定义你的任意内容 【优先级环境变量】
+const TG_CHANNEL_URL = "https://t.me/cloudflareorg";  //可以在此自定义你的任意内容  【优先级环境变量】
+const PROXY_CHECK_URL = "https://kaic.hidns.co/";  //proxyip检测站 支持自定义修改   【优先级环境变量】
 
-const DEFAULT_CONVERTER = "https://subapi.cmliussss.net"; //可自定义修改你的subapi
+const DEFAULT_CONVERTER = "https://subapi.cmliussss.net"; //可自定义修改你的subapi   【优先级环境变量】
 
 // Clash 默认配置 (完整兼容性好)
-const CLASH_CONFIG = "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/config/ACL4SSR_Online_Full_MultiMode.ini"; //可自定义修改你的订阅配置
+const CLASH_CONFIG = "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/config/ACL4SSR_Online_Full_MultiMode.ini"; //可自定义修改你的订阅配置   【优先级环境变量】
 
 // 🚨🚨🚨 [Sing-box 专用配置] 自动双版本容灾 【勿动】
 // 优先级 1: 1.12.x
@@ -35,8 +35,8 @@ const SINGBOX_CONFIG_V12 = "https://raw.githubusercontent.com/sinspired/sub-stor
 const SINGBOX_CONFIG_V11 = "https://raw.githubusercontent.com/sinspired/sub-store-template/main/1.11.x/sing-box.json"; //勿动
 
 // 🔴 TG配置 (在""填写你需要的内容)
-const TG_BOT_TOKEN = ""; //你的机器人token
-const TG_CHAT_ID = ""; //你的telegram 用户id
+const TG_BOT_TOKEN = ""; //你的机器人token    【优先级环境变量】
+const TG_CHAT_ID = ""; //你的telegram 用户id   【优先级环境变量】
 
 const DEFAULT_CUSTOM_IPS = `173.245.58.127#CF官方优选
 8.39.125.176#CF官方优选
@@ -242,7 +242,7 @@ async function sendTgMsg(ctx, env, title, r, detail = "") {
     const city = r.cf?.city || 'Unknown';
     const time = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
     const safe = (str) => (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const text = `<b>📡 ${safe(title)}</b>\n\n` + `<b>🕒 时间:</b> <code>${time}</code>\n` + `<b>🌍 IP:</b> <code>${safe(ip)} (${safe(city)})</code>\n` + `<b>🔗 域名:</b> <code>${safe(url.hostname)}</code>\n` + `<b>🛣️ 路径:</b> <code>${safe(url.pathname)}</code>\n` + `<b>📱 客户端:</b> <code>${safe(ua)}</code>\n` + (detail ? `<b>ℹ️ 详情:</b> ${safe(detail)}` : "");
+    const text = `<b>📡 ${safe(title)}</b>\n\n` + `<b>🕒 时间:</b> <code>${time}</code>\n` + `<b>🌍 IP:</b> <code>${safe(url.hostname)}</code>\n` + `<b>🔗 域名:</b> <code>${safe(url.hostname)}</code>\n` + `<b>🛣️ 路径:</b> <code>${safe(url.pathname)}</code>\n` + `<b>📱 客户端:</b> <code>${safe(ua)}</code>\n` + (detail ? `<b>ℹ️ 详情:</b> ${safe(detail)}` : "");
     const params = { chat_id: chat_id, text: text, parse_mode: 'HTML', disable_web_page_preview: true };
     return fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) }).catch(e => console.error("TG Send Error:", e));
   } catch(e) { console.error("TG Setup Error:", e); }
@@ -515,7 +515,7 @@ function loginPage(tgGroup, tgChannel) {
 </html>`;
 }
 
-function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clientIP) {
+function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clientIP, hasAuth) {
     const ipList = env.ADD || DEFAULT_CUSTOM_IPS;
     const defaultSubLink = `https://${host}/${subpass}`;
     const pathParam = proxyip ? "/proxyip=" + proxyip : "/";
@@ -713,9 +713,11 @@ function dashPage(host, uuid, proxyip, subpass, subdomain, converter, env, clien
         const UUID = "${uuid}";
         const CONVERTER = "${converter}";
         const CLIENT_IP = "${clientIP}";
+        const HAS_AUTH = ${hasAuth}; // 注入后端鉴权状态
 
-        // 🟢 强制登录检查
-        if (!sessionStorage.getItem("is_active")) {
+        // 🟢 修复逻辑：只有在后端开启了密码验证时，才执行前端的强制登出检查
+        // 如果 WEB_PASSWORD 为空，HAS_AUTH 为 false，此段代码不执行，避免死循环
+        if (HAS_AUTH && !sessionStorage.getItem("is_active")) {
             document.cookie = "auth=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
             location.reload();
         }
@@ -864,8 +866,27 @@ export default {
       const _WEB_PW = await getSafeEnv(env, 'WEB_PASSWORD', WEB_PASSWORD);
       const _SUB_PW = await getSafeEnv(env, 'SUB_PASSWORD', SUB_PASSWORD);
       const _PROXY_IP = await getSafeEnv(env, 'PROXYIP', DEFAULT_PROXY_IP);
-      const _SUB_DOMAIN = await getSafeEnv(env, 'SUB_DOMAIN', DEFAULT_SUB_DOMAIN);
-      const _CONVERTER = await getSafeEnv(env, 'SUBAPI', DEFAULT_CONVERTER);
+      
+      // 🟢 修改点：引入变量清洗逻辑
+      let _SUB_DOMAIN = await getSafeEnv(env, 'SUB_DOMAIN', DEFAULT_SUB_DOMAIN);
+      let _CONVERTER = await getSafeEnv(env, 'SUBAPI', DEFAULT_CONVERTER);
+
+      // 🛡️ 智能清洗 SUB_DOMAIN (目标: 纯域名, 无 http, 无尾部斜杠)
+      if (_SUB_DOMAIN.includes("://")) {
+          _SUB_DOMAIN = _SUB_DOMAIN.split("://")[1];
+      }
+      // 处理可能存在的路径斜杠 (比如用户复制了 https://domain.com/)
+      if (_SUB_DOMAIN.includes("/")) {
+          _SUB_DOMAIN = _SUB_DOMAIN.split("/")[0];
+      }
+
+      // 🛡️ 智能清洗 SUBAPI (目标: 完整URL, 必须有 http/https, 无尾部斜杠)
+      if (_CONVERTER.endsWith("/")) {
+          _CONVERTER = _CONVERTER.slice(0, -1);
+      }
+      if (!_CONVERTER.startsWith("http://") && !_CONVERTER.startsWith("https://")) {
+          _CONVERTER = "https://" + _CONVERTER;
+      }
 
       // 黑白名单
       const wl = await getSafeEnv(env, 'WL_IP', "");
@@ -973,7 +994,7 @@ export default {
            }
       }
 
-      // 🟢 订阅接口
+      // 🟢 订阅接口 (核心修改：自适应优先获取上游订阅)
       if (_SUB_PW && url.pathname === `/${_SUB_PW}`) {
           ctx.waitUntil(logAccess(env, clientIP, `${city},${country}`, "订阅更新"));
           const isFlagged = url.searchParams.has('flag');
@@ -983,26 +1004,42 @@ export default {
           }
 
           const requestProxyIp = url.searchParams.get('proxyip') || _PROXY_IP;
-          let selfUrl = `https://${host}/${_SUB_PW}?flag=true`;
-          if (requestProxyIp) selfUrl += `&proxyip=${encodeURIComponent(requestProxyIp)}`;
+          
+          // 构建指向上游订阅源的 URL (sub.cmliussss.net)
+          // 逻辑需与 dashPage 生成链接保持一致
+          const pathParam = requestProxyIp ? "/proxyip=" + requestProxyIp : "/";
+          // 注意：此处构建的是请求上游的完整URL
+          const subUrl = `https://${_SUB_DOMAIN}/sub?uuid=${_UUID}&encryption=none&security=tls&sni=${host}&alpn=h3&fp=random&allowInsecure=1&type=ws&host=${host}&path=${encodeURIComponent(pathParam)}`;
 
           const UA_L = UA.toLowerCase();
+          // 1. 如果是 Clash/Singbox，将上游订阅链接传给转换器
           if (UA_L.includes('sing-box') || UA_L.includes('singbox') || UA_L.includes('clash') || UA_L.includes('meta')) {
               const type = (UA_L.includes('clash') || UA_L.includes('meta')) ? 'clash' : 'singbox';
               const config = type === 'clash' ? CLASH_CONFIG : SINGBOX_CONFIG_V12;
-              const subApi = `${_CONVERTER}/sub?target=${type}&url=${encodeURIComponent(selfUrl)}&config=${encodeURIComponent(config)}&emoji=true&list=false&sort=false&fdn=false&scv=false`;
+              // 关键修改：这里 url 参数传 subUrl (上游) 而不是 selfUrl (自己)
+              const subApi = `${_CONVERTER}/sub?target=${type}&url=${encodeURIComponent(subUrl)}&config=${encodeURIComponent(config)}&emoji=true&list=false&sort=false&fdn=false&scv=false`;
               try {
                   const res = await fetch(subApi);
                   return new Response(res.body, { status: 200, headers: res.headers });
               } catch(e) {}
           }
 
+          // 2. 如果是普通订阅 (Base64)，直接请求上游订阅源并返回
+          // 这样用户获取到的就是 sub.cmliussss.net 生成的节点信息
+          try {
+              const res = await fetch(subUrl, { headers: { 'User-Agent': UA } });
+              if (res.ok) {
+                  return new Response(res.body, { status: 200, headers: res.headers });
+              }
+          } catch(e) {}
+
+          // 3. 兜底逻辑：只有当上游请求失败时，才使用本地生成
           const allIPs = await getCustomIPs(env);
           const listText = genNodes(host, _UUID, requestProxyIp, allIPs);
           return new Response(btoa(unescape(encodeURIComponent(listText))), { status: 200, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       }
 
-      // 🟢 常规订阅 /sub
+      // 🟢 常规订阅 /sub (保持原样，本地生成)
       if (url.pathname === '/sub') {
           ctx.waitUntil(logAccess(env, clientIP, `${city},${country}`, "常规订阅"));
           const requestUUID = url.searchParams.get('uuid');
@@ -1031,7 +1068,8 @@ export default {
           
           await sendTgMsg(ctx, env, "✅ 后台登录成功", r, "进入管理面板");
           ctx.waitUntil(logAccess(env, clientIP, `${city},${country}`, "登录后台"));
-          return new Response(dashPage(url.hostname, _UUID, _PROXY_IP, _SUB_PW, _SUB_DOMAIN, _CONVERTER, env, clientIP), { status: 200, headers: noCacheHeaders });
+          const hasPassword = !!_WEB_PW;
+          return new Response(dashPage(url.hostname, _UUID, _PROXY_IP, _SUB_PW, _SUB_DOMAIN, _CONVERTER, env, clientIP, hasPassword), { status: 200, headers: noCacheHeaders });
       }
       
       // 🟣 代理逻辑 (WebSocket)
