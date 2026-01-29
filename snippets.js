@@ -1,4 +1,4 @@
-import { connect } from 'cloudflare:sockets';
+import { connect } from 'cloudflare:sockets'; 
 
 // =============================================================================
 // 用户配置区域
